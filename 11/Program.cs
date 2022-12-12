@@ -11,15 +11,8 @@ public class Program
         var part1 = GetMonkeyBusiness(20, 3);
         Console.WriteLine(part1);
 
-        // GetMonkeyBusiness(900, 1);
-
         var part2 = GetMonkeyBusiness(10000, 1);
         Console.WriteLine(part2);
-
-        // foreach (var rounds in new[] { 1, 20, 1000, 2000, 4000, 5000, 6000, 7000, 8000, 9000, 10_000 })
-        // {
-        //     GetMonkeyBusiness(rounds, 1);
-        // }
     }
 
     public static long GetMonkeyBusiness(int rounds, int worryDivision)
@@ -29,7 +22,6 @@ public class Program
         var moduloBoi = monkeys.Select(m => m.Test).Aggregate(1L, (acc, next) => acc * next);
         for (int i = 0; i < rounds; i++)
         {
-            // Console.WriteLine($"round {i}");
             foreach (var monkey in monkeys)
             {
                 while (monkey.Items.Any())
