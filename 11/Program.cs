@@ -8,13 +8,13 @@ public class Program
 {
     public static void Main()
     {
-        // var part1 = GetMonkeyBusiness(20, 3);
-        // Console.WriteLine(part1);
+        var part1 = GetMonkeyBusiness(20, 3);
+        Console.WriteLine(part1);
 
-        GetMonkeyBusiness(900, 1);
+        // GetMonkeyBusiness(900, 1);
 
-        // var part2 = GetMonkeyBusiness(10000, 1);
-        // Console.WriteLine(part2);
+        var part2 = GetMonkeyBusiness(10000, 1);
+        Console.WriteLine(part2);
 
         // foreach (var rounds in new[] { 1, 20, 1000, 2000, 4000, 5000, 6000, 7000, 8000, 9000, 10_000 })
         // {
@@ -26,9 +26,10 @@ public class Program
     {
         var monkeys = ReadMonkeys().ToArray();
 
+        var moduloBoi = monkeys.Select(m => m.Test).Aggregate(1L, (acc, next) => acc * next);
         for (int i = 0; i < rounds; i++)
         {
-            Console.WriteLine($"round {i}");
+            // Console.WriteLine($"round {i}");
             foreach (var monkey in monkeys)
             {
                 while (monkey.Items.Any())
@@ -36,7 +37,8 @@ public class Program
                     var item = monkey.Items.Dequeue();
                     item = monkey.Operation(item);
                     monkey.InspectionCount++;
-                    // item /= worryDivision;
+                    item /= worryDivision;
+                    item %= moduloBoi;
 
                     var test = item % monkey.Test == 0;
                     monkeys[test ? monkey.TrueDest : monkey.FalseDest].Items.Enqueue(item);
@@ -51,7 +53,7 @@ public class Program
     {
         Monkey? currentMonkey = null;
 
-        foreach (var line in File.ReadLines("example.txt"))
+        foreach (var line in File.ReadLines("input.txt"))
         {
             Match match;
             if (string.IsNullOrWhiteSpace(line))
@@ -80,15 +82,11 @@ public class Program
             {
                 var @operator = match.Groups[1].Value;
                 var operandStr = match.Groups[2].Value;
-                var operand = operandStr == "old" ? null : IntX.Parse(operandStr);
-                var dict = new Dictionary<IntX, IntX>();
-                currentMonkey!.Operation = (IntX old) =>
+                var operand = operandStr == "old" ? null : long.Parse(operandStr) as long?;
+                currentMonkey!.Operation = (long old) =>
                 {
-                    if (dict.TryGetValue(old, out var v)) return v;
                     var actualOperand = operand ?? old;
-                    var ret = @operator == "*" ? old * actualOperand : old + actualOperand;
-                    dict[old] = ret;
-                    return ret;
+                    return @operator == "*" ? old * actualOperand : old + actualOperand;
                 };
 
                 continue;
@@ -124,9 +122,9 @@ public class Program
 
 public class Monkey
 {
-    public Queue<IntX> Items { get; } = new();
-    public Func<IntX, IntX> Operation { get; set; } = null!;
-    public IntX Test { get; set; }
+    public Queue<long> Items { get; } = new();
+    public Func<long, long> Operation { get; set; } = null!;
+    public long Test { get; set; }
     public int TrueDest { get; set; }
     public int FalseDest { get; set; }
     public long InspectionCount { get; set; }
