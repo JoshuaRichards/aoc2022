@@ -6,7 +6,7 @@ public static class Program
 {
     public static void Main()
     {
-        // Part1();
+        Part1();
         var part2 = Part2();
         Console.WriteLine(part2);
     }
@@ -21,21 +21,18 @@ public static class Program
         var minX = minSensorX - maxManhattan;
         var maxX = maxSensorX + maxManhattan;
         var y = 2000000;
-        // var y = 10;
 
         var forbotten = new List<Point>();
         var part1 = 0;
         for (var x = minX; x <= maxX; x++)
         {
             var point = new Point(x, y);
-            // Console.WriteLine(point);
             var isForbotten = entries.Any(e => GetManhattanDistance(point, e.sensor) <= e.GetManhattanDistance());
             if (isForbotten)
             {
                 part1++;
                 forbotten.Add(point);
             }
-            // if ((x - minX) > 100000) break;
         }
 
         part1 -= entries.Where(e => e.closestBeacon.y == y).Select(e => e.closestBeacon).Distinct().Count();
@@ -47,18 +44,22 @@ public static class Program
     {
         var entries = ReadEntries().ToArray();
         var magicNumber = 4_000_000;
-        
-        var candidates = new HashSet<Point>(
-            entries.SelectMany(e => GetCandidates(e.sensor, e.GetManhattanDistance() + 1))
-        );
-        foreach (var entry in entries) candidates.Remove(entry.closestBeacon);
 
-        var answer = candidates
+        var beacons = entries.Select(e => e.closestBeacon).ToHashSet();
+        var candidates = entries.SelectMany(e => GetCandidates(e.sensor, e.GetManhattanDistance() + 1))
             .Where(p => p.x >= 0 && p.x <= magicNumber && p.y >= 0 && p.y <= magicNumber)
-            .Where(p => !entries.Any(e => GetManhattanDistance(p, e.sensor) <= e.GetManhattanDistance()))
-            .ToArray();
+            .Where(p => !beacons.Contains(p))
+            .ToHashSet();
 
-        return (answer[0].x * magicNumber) + answer[0].y;
+        candidates.RemoveWhere(p => beacons.Contains(p));
+        foreach (var entry in entries)
+        {
+            // Console.WriteLine($"{candidates.Count()} candidates remain. removing points in range of {entry}");
+            candidates.RemoveWhere(p => GetManhattanDistance(p, entry.sensor) <= entry.GetManhattanDistance());
+        }
+
+        var answer = candidates.Single();
+        return (answer.x * magicNumber) + answer.y;
     }
 
     public static long GetManhattanDistance(Point source, Point dest)
@@ -87,59 +88,6 @@ public static class Program
             yDist--;
         }
     }
-
-    public static IEnumerable<Point> GetForbottens(Point source, int radius)
-    {
-        Console.WriteLine($"GetForbottens({source}, {radius})");
-        radius = Math.Abs(radius);
-        var xDist = 0;
-        var yDist = radius;
-
-        while (xDist <= radius)
-        {
-            Console.WriteLine($"xDist: {xDist}, yDist: {yDist}");
-            var destinations = new[] {
-                new Point(source.x + xDist, source.y + yDist),
-                new Point(source.x + xDist, source.y - yDist),
-                new Point(source.x - xDist, source.y + yDist),
-                new Point(source.x - xDist, source.y - yDist),
-            };
-
-            var points = destinations.SelectMany(d => InterpolatePointsButManhattan(source, d));
-            foreach (var point in points)
-            {
-                yield return point;
-            }
-
-            xDist++;
-            yDist--;
-        }
-    }
-
-    public static IEnumerable<Point> InterpolatePointsButManhattan(Point source, Point dest)
-    {
-        var points = InterpolatePoints(source, new Point(source.x, dest.y))
-            .Concat(InterpolatePoints(new Point(source.x, dest.y), dest))
-            .Concat(InterpolatePoints(source, new Point(dest.y, source.x)))
-            .Concat(InterpolatePoints(new Point(dest.y, source.x), dest));
-
-        return points;
-    }
-
-    public static IEnumerable<Point> InterpolatePoints(Point source, Point dest)
-    {
-        yield return source;
-        var current = source;
-        while (current != dest)
-        {
-            current = new Point(
-                x: current.x - Math.Clamp(current.x.CompareTo(dest.x), -1, 1),
-                y: current.y - Math.Clamp(current.y.CompareTo(dest.y), -1, 1)
-            );
-            yield return current;
-        }
-    }
-
 
     public static IEnumerable<Entry> ReadEntries()
     {
