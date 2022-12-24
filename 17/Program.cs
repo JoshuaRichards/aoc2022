@@ -64,7 +64,7 @@ public class Program
         var directions = ReadDirections().GetEnumerator();
         var tetrominos = GetTetrominos().GetEnumerator();
 
-        var hashedBois = new Dictionary<string, (long, long)>();
+        var hashedBois = new Dictionary<string, (long, long, Point[], long?)>();
 
         var maxY = 0L;
         var target = 1_000_000_000_000;
@@ -83,9 +83,19 @@ public class Program
                 Console.WriteLine($"iteration {iteration} hash {hash}, {bois.Count()} bois");
                 if (hashedBois.TryGetValue(hash, out var last))
                 {
-                    Console.WriteLine("WE FOUND IT");
-                    var (lastIteration, lastMinY) = last;
+                    var (lastIteration, lastMinY, lastBois, lastIterationLength) = last;
                     var iterationDiff = (iteration - lastIteration);
+                    if (lastIterationLength is null)
+                    {
+                        Console.WriteLine("found a candidate. adding iteration diff to dict");
+                        hashedBois[hash] = (iteration, bois.Min(p => p.Y), bois, iterationDiff);
+                        goto doneWithTheHashBs;
+                    }
+                    else if (lastIterationLength is not null && lastIterationLength != iterationDiff)
+                    {
+                        Console.WriteLine($"bad iteration diff of {iterationDiff}. last one was {lastIterationLength}. we're not doin it");
+                        goto doneWithTheHashBs;
+                    }
                     var heightDiff = bois.Min(p => p.Y) - lastMinY;
 
                     var remainingIterations = target - iteration;
@@ -93,7 +103,7 @@ public class Program
                     Console.WriteLine($"hash {hash} was last found at iteration {lastIteration}. that was {iterationDiff} iterations ago.");
                     Console.WriteLine($"height diff is {heightDiff}");
                     Console.WriteLine($"there are {remainingIterations} iterations left. so we're skipping {fastForward} iterations.");
-                    iteration += fastForward * iterationDiff + 1;
+                    iteration += fastForward * iterationDiff;
                     Console.WriteLine($"we're on {iteration} iteration now.");
                     var newBois = bois.Select(p => new Point(p.X, p.Y + (heightDiff * fastForward)));
                     foreach (var boi in newBois) rockyBois.Add(boi);
@@ -101,12 +111,22 @@ public class Program
                     maxY += fastForward * heightDiff;
                     Console.WriteLine($"maxY is now {maxY}");
                     shouldHash = false;
+                    Console.WriteLine("=====================bois now======================");
+                    PrintTheThing(new HashSet<Point>(bois), new Point[0], bois.Max(p => p.Y) + 6);
+                    Console.WriteLine("=====================bois then=====================");
+                    PrintTheThing(new HashSet<Point>(lastBois), new Point[0], lastBois.Max(p => p.Y) + 6);
+                    Console.WriteLine("===================================================");
+                    Console.WriteLine($"oh and another thing maxY is {maxY}");
                 }
                 else
                 {
-                    hashedBois[hash] = (iteration, bois.Any() ? bois.Min(p => p.Y) : 0);
+                    if (Enumerable.Range(0, maxX + 1).All(x => bois.Any(p => p.X == x)))
+                        hashedBois[hash] = (iteration, bois.Any() ? bois.Min(p => p.Y) : 0, bois, null);
+
+                    rockyBois = new HashSet<Point>(bois);
                 }
             }
+            doneWithTheHashBs:
 
             tetromino = tetromino.Select(p => new Point(p.X + spawnX, p.Y + spawnY)).ToArray();
 
@@ -131,6 +151,7 @@ public class Program
         Console.WriteLine(maxY);
     }
 
+    private static readonly SHA256 hashyBoi = SHA256.Create();
     public static string HashTheBois(Point[] theBois)
     {
         if (!theBois.Any()) return "";
@@ -138,8 +159,7 @@ public class Program
         var normalisedBois = theBois.Select(p => new Point(p.X, p.Y - minY)).Select(p => (p.X, p.Y)).OrderBy(p => p);
         var bytes = normalisedBois.SelectMany(p => BitConverter.GetBytes(p.X).Concat(BitConverter.GetBytes(p.Y))).ToArray();
 
-        using var hash = SHA256.Create();
-        var hashed = hash.ComputeHash(bytes);
+        var hashed = hashyBoi.ComputeHash(bytes);
         return string.Join("", hashed.Select(c => c.ToString("x2")));
     }
 
@@ -176,8 +196,9 @@ public class Program
     public static void PrintTheThing(HashSet<Point> rockyBois, Point[] tetromino, long maxY)
     {
         if (System.Diagnostics.Debugger.IsAttached) return;
+        long minY = rockyBois.Min(p => p.Y);
 
-        for (long y = maxY; y >= 1; y--)
+        for (long y = maxY; y >= minY; y--)
         {
             Console.Write("|");
             for (long x = 0; x < 7; x++)
@@ -194,8 +215,8 @@ public class Program
             Console.WriteLine("|");
         }
         Console.WriteLine("+-------+");
-        Console.ReadKey();
-        Console.Clear();
+        // Console.ReadKey();
+        // Console.Clear();
     }
 
     public static (Point[] next, bool done) Step(Point[] points, int direction, HashSet<Point> rockyBois)
